@@ -1,0 +1,4 @@
+#!/bin/sh
+HOST=$1
+knock $HOST 8881 7777 9991
+ssh $USER@$HOST

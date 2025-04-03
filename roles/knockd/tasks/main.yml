@@ -1,0 +1,56 @@
+---
+- name: apt update
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: install knockd 
+  ansible.builtin.apt:
+    name: knockd
+    state: latest
+
+- name: enable knockd
+  ansible.builtin.lineinfile:
+    path: /etc/default/knockd
+    regexp: '^#START_KNOCKD='
+    line: START_KNOCKD=1
+  when: 
+    - protect is defined
+    - protect == 'server'
+
+- name: enable knockd
+  ansible.builtin.lineinfile:
+    path: /etc/default/knockd
+    regexp: '^#KNOCKD_OPTS'
+    line: KNOCKD_OPTS="-i ens19"
+  when: 
+    - protect is defined
+    - protect == 'server'
+
+
+- name: config knockd
+  ansible.builtin.template:
+    src: knockd.conf
+    dest: /etc/knockd.conf
+    mode: "0755"
+  when: 
+    - protect is defined
+    - protect == 'server'
+
+- name: start knockd
+  ansible.builtin.systemd_service:
+    name: knockd
+    enabled: true
+    state: started
+  when: 
+    - protect is defined
+    - protect == 'server'
+  
+- name: copy knock_script for access inetrouter
+  ansible.builtin.template:
+    src: knock_script
+    dest: ~/knock_script
+    mode: '0755'
+  when: 
+    - protect is defined
+    - protect == 'client'

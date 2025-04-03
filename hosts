@@ -1,0 +1,13 @@
+[routers]
+inetrouter      ansible_host=10.200.3.221
+inetrouter2     ansible_host=10.200.3.228
+centalrouter    ansible_host=10.200.3.222
+office1router   ansible_host=10.200.3.224
+office2router   ansible_host=10.200.3.225
+
+[servers]
+centralserver   ansible_host=10.200.3.223
+office1server   ansible_host=10.200.3.226
+office2server   ansible_host=10.200.3.227
+
+

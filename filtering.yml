@@ -1,0 +1,111 @@
+---
+- name: Install iptables and network utils
+  hosts: all
+  gather_facts: True
+
+  pre_tasks:
+    - name: Rename hostanme
+      ansible.builtin.hostname:
+        name: '{{ inventory_hostname }}'
+        use: systemd
+
+  roles:
+    - install_iptables
+    - install_utils
+
+- name: Intsall knockd and config on inetrouter
+  hosts: inetrouter
+  gather_facts: true
+
+  roles:
+    - role: knockd
+      vars:
+        protect: server
+  
+
+
+- name: Intsall knockd and config on centralRouter
+  hosts: centalrouter
+  gather_facts: true
+
+  roles:
+    - role: knockd
+      vars:
+        protect: client
+
+- name: install and run nginx on centralServer
+  hosts: centralserver
+  gather_facts: true
+
+  roles:
+    - role: install_nginx
+
+     
+- name: Intsall knockd and config on inetrouter
+  hosts: all
+  gather_facts: true
+
+  vars:
+    def_gw: 10.200.3.1
+
+  tasks:
+    - name: create iptables for inetrouter
+      ansible.builtin.template:
+        src: iptables_inetrouter
+        dest: /etc/iptables/rules.v4
+      when: ansible_hostname == "inetrouter"
+
+    - name: restore iptables
+      community.general.iptables_state:
+        state: restored
+        path: /etc/iptables/rules.v4
+      when: ansible_hostname == "inetrouter"
+
+    - name: create iptables for inetrouter2
+      ansible.builtin.template:
+        src: iptables_inetrouter2
+        dest: /etc/iptables/rules.v4
+      when: ansible_hostname == "inetrouter2"
+
+    - name: restore iptables
+      community.general.iptables_state:
+        state: restored
+        path: /etc/iptables/rules.v4
+      when: ansible_hostname == "inetrouter2"
+    
+    - name: config net.ipv4.conf
+      ansible.posix.sysctl:
+        name: net.ipv4.conf.all.forwarding
+        value: '1'
+        state: present
+        sysctl_set: true
+        reload: true
+      when: "'routers' in group_names"
+
+    - name: disable default route
+      ansible.builtin.template: 
+        src: 00-installer-config.yaml
+        dest: /etc/netplan/00-installer-config.yaml
+        owner: root
+        group: root
+        mode: 0600
+      when: (ansible_hostname != "inetrouter") 
+    
+    - name: start netplan
+      shell: netplan apply
+      when: (ansible_hostname != "inetrouter")
+
+    - name: add netplan template
+      template: 
+        src: "50-vagrant_{{ansible_hostname}}.yml"
+        dest: /etc/netplan/50-vagrant.yaml
+        owner: root
+        group: root
+        mode: 0600
+        
+    - name: start netplan
+      shell: netplan apply
+
+    - name: remove defautl gw
+      shell: "ip route del 0.0.0.0/0 via {{ def_gw }}"
+      when: (ansible_hostname != "inetrouter")
